@@ -3,8 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Goodeats | Page not found',
-  description: 'What would you like to cook today',
+  title: 'DMSE | Page not found',
 }
 
 const PageNotFound: React.FC = () => {

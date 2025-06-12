@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 export default function Page() {
   return (
     <main className="flex-1 flex items-center justify-center bg-white">
-      <div className="flex gap-8">
+      <div className="flex gap-8 flex-col sm:flex-row">
         <Link href="/book" passHref>
           <Button
             variant="outline"
-            className="w-64 h-64 flex flex-col items-center justify-center rounded-xl shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors text-xl"
+            className="w-48 h-48 sm:w-64 sm:h-64 flex flex-col items-center justify-center rounded-xl shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors text-xl"
           >
             Book
           </Button>
@@ -16,7 +16,7 @@ export default function Page() {
         <Link href="/slot-history" passHref>
           <Button
             variant="outline"
-            className="w-64 h-64 flex flex-col items-center justify-center rounded-xl shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors text-xl"
+            className="w-48 h-48 sm:w-64 sm:h-64 flex flex-col items-center justify-center rounded-xl shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors text-xl"
           >
             View Slot History
           </Button>
