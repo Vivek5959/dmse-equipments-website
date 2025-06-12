@@ -1,0 +1,58 @@
+{
+  "labs": [
+    {
+      "id": "lab001",
+      "name": "Materials Characterization Lab",
+      "instruments": [
+        {
+          "id": "inst001",
+          "name": "Scanning Electron Microscope (SEM)"
+        },
+        {
+          "id": "inst002",
+          "name": "X-ray Diffractometer (XRD)"
+        },
+        {
+          "id": "inst003",
+          "name": "Atomic Force Microscope (AFM)"
+        }
+      ]
+    },
+    {
+      "id": "lab002",
+      "name": "Mechanical Testing Lab",
+      "instruments": [
+        {
+          "id": "inst004",
+          "name": "Universal Testing Machine"
+        },
+        {
+          "id": "inst005",
+          "name": "Hardness Tester"
+        },
+        {
+          "id": "inst006",
+          "name": "Impact Testing Machine"
+        }
+      ]
+    },
+    {
+      "id": "lab003",
+      "name": "Processing and Fabrication Lab",
+      "instruments": [
+        {
+          "id": "inst007",
+          "name": "Hot Press"
+        },
+        {
+          "id": "inst008",
+          "name": "Vacuum Arc Melter"
+        },
+        {
+          "id": "inst009",
+          "name": "Electron Beam Evaporator"
+        }
+      ]
+    }
+  ]
+}

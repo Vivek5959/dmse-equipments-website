@@ -1,0 +1,58 @@
+[
+  {
+    "sNo": 1,
+    "appNo": "20134",
+    "appliedOn": "25 March, 9:15 a.m.",
+    "instrument": "AFM",
+    "bookingDate": "3 April, 10:00 a.m. - 12:00 p.m.",
+    "status": "Approved"
+  },
+  {
+    "sNo": 2,
+    "appNo": "20137",
+    "appliedOn": "25 March, 11:30 a.m.",
+    "instrument": "AFM",
+    "bookingDate": "3 April, 1:00 p.m. - 3:00 p.m.",
+    "status": "Pending"
+  },
+  {
+    "sNo": 3,
+    "appNo": "20152",
+    "appliedOn": "25 March, 2:45 p.m.",
+    "instrument": "AFM",
+    "bookingDate": "3 April, 3:30 p.m. - 5:30 p.m.",
+    "status": "Approved"
+  },
+  {
+    "sNo": 4,
+    "appNo": "20158",
+    "appliedOn": "26 March, 8:30 a.m.",
+    "instrument": "AFM",
+    "bookingDate": "4 April, 9:00 a.m. - 11:00 a.m.",
+    "status": "Approved"
+  },
+  {
+    "sNo": 5,
+    "appNo": "20161",
+    "appliedOn": "26 March, 12:15 p.m.",
+    "instrument": "AFM",
+    "bookingDate": "4 April, 2:00 p.m. - 4:00 p.m.",
+    "status": "Approved"
+  },
+  {
+    "sNo": 6,
+    "appNo": "20165",
+    "appliedOn": "26 March, 5:00 p.m.",
+    "instrument": "AFM",
+    "bookingDate": "5 April, 10:30 a.m. - 12:30 p.m.",
+    "status": "Approved"
+  },
+  {
+    "sNo": 7,
+    "appNo": "20169",
+    "appliedOn": "27 March, 10:00 a.m.",
+    "instrument": "AFM",
+    "bookingDate": "5 April, 1:00 p.m. - 3:00 p.m.",
+    "status": "Approved"
+  }
+]
