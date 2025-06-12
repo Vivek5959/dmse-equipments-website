@@ -119,6 +119,11 @@ export default function Page() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Check if supervisor is selected
+    if (!supervisor) {
+      alert('Please select a supervisor before submitting.');
+      return; // Do not close dialog or reset values
+    }
     // Handle booking logic here
     console.log('Booking Data:', {
       labName: bookingData?.labName,
