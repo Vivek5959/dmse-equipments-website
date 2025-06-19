@@ -21,6 +21,14 @@ export default function Page() {
             View Slot History
           </Button>
         </Link>
+        <Link href="/apply-reimbursements" passHref>
+          <Button
+            variant="outline"
+            className="w-48 h-48 sm:w-64 sm:h-64 flex flex-col items-center justify-center rounded-xl shadow-sm hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors text-xl"
+          >
+            Apply for Reimbursements
+          </Button>
+        </Link>
       </div>
     </main>
   );
