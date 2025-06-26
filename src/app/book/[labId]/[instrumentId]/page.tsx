@@ -1,203 +1,247 @@
 'use client';
 
-import { useParams } from 'next/navigation';
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { format, addDays, parse } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { format, parse } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Combobox } from '@/components/ui/combobox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { jwtDecode } from 'jwt-decode';
+
+interface SlotAvailability {
+  slotId: number;
+  time: string;
+  available: number;
+  total: number;
+}
+
+interface Availability {
+  date: string;
+  slots?: SlotAvailability[];
+}
 
 interface Instrument {
-  id: string;
-  name: string;
+  instrument_id: number;
+  instrument_name: string;
+  is_working: boolean;
+  total: number;
+  lab_name: string;
+  availability: Availability[];
 }
 
 interface Lab {
-  id: string;
+  id: number;
   name: string;
-  instruments: Instrument[];
 }
 
-interface Slot {
+interface DecodedToken {
+  id: number;
+  privilege_level: string;
+}
+
+interface BookingData {
+  labId: number;
+  labName: string;
+  instrumentName: string;
   date: string;
-  times: {
-    id: number;
-    time: string;
-    available: number;
-    total: number;
-  }[];
+  timeSlot: string;
 }
 
-const supervisors = [
-  { value: 'jayantj', label: 'Prof. Jayant Jain' },
-  { value: 'ksnvikrant', label: 'Prof. Suryanarayana Vikrant Karra' },
-  { value: 'rajesh', label: 'Prof. Rajesh Prasad' },
-  { value: 'jacob', label: 'Prof. Josemon Jacob' },
-  { value: 'bhabani', label: 'Prof. Bhabani K Satapathy' },
-];
-
-export default function Page() {
-  const params = useParams();
+export default function AvailabilityPage() {
+  const [instrument, setInstrument] = useState<Instrument | null>(null);
   const [lab, setLab] = useState<Lab | null>(null);
-  const [instrument, setInstrument] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [bookingData, setBookingData] = useState<{
-    labName: string;
-    instrumentName: string;
-    date: string;
-    timeSlot: string;
-  } | null>(null);
+  const [bookingData, setBookingData] = useState<BookingData | null>(null);
+  const router = useRouter();
+  const { labId, instrumentId } = useParams();
 
-  // Modal form state
-  const [supervisor, setSupervisor] = useState('');
-  const [supervisorQuery, setSupervisorQuery] = useState('');
-  const filteredSupervisors = supervisors.filter(s =>
-    s.label.toLowerCase().includes(supervisorQuery.toLowerCase()) ||
-    s.value.toLowerCase().includes(supervisorQuery.toLowerCase())
-  );
-
-  // Generate slots for next 7 days with static available slots
-  const [slots] = useState<Slot[]>(() => {
-    const dates: Slot[] = [];
-    const today = new Date();
-
-  for (let i = 1; i <= 7; i++) {
-    const slotDate = addDays(today, i);
-    dates.push({
-      date: format(slotDate, 'EEEE, do MMMM, yyyy'),
-      times: [
-        { id: 3*i - 2, time: '10:00 AM to 12:00 PM', available: 2, total: 4 },
-        { id: 3*i - 1, time: '12:00 PM to 2:00 PM', available: 3, total: 4 },
-        { id: 3*i,     time: '4:00 PM to 6:00 PM', available: 0, total: 4 },
-      ],
-    });
-  }
-
-
-    return dates;
-  });
-
-  // Load lab and instrument data
+  // Fetch instrument and lab data
   useEffect(() => {
-    fetch('/labs.json')
-      .then((res) => res.json())
-      .then((data) => {
-        const foundLab = data.labs.find((l: Lab) => l.id === params.labId);
-        if (foundLab) {
-          setLab(foundLab);
-          const foundInstrument = foundLab.instruments.find(
-            (i : Instrument) => i.id === params.instrumentId
-          );
-          setInstrument(foundInstrument?.name || '');
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found. Please log in.');
         }
-      });
-  }, [params.labId, params.instrumentId]);
+        const headers = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        };
+
+        // Fetch instruments with cache-busting
+        const instrumentResponse = await fetch(`http://localhost:5000/api/equipment/instruments/${labId}?t=${Date.now()}`, {
+          headers,
+        });
+        if (!instrumentResponse.ok) {
+          const errorText = await instrumentResponse.text();
+          throw new Error(`Failed to fetch instrument data: ${errorText}`);
+        }
+        const instrumentData = await instrumentResponse.json();
+        console.log('Instrument data:', instrumentData);
+        if (!Array.isArray(instrumentData)) throw new Error('Invalid response format: Instrument data is not an array');
+        const selectedInstrument = instrumentData.find((inst: Instrument) => inst.instrument_id === Number(instrumentId));
+        if (selectedInstrument) {
+          console.log('Selected instrument:', selectedInstrument);
+          console.log('Lab name from instrument:', selectedInstrument.lab_name);
+          setInstrument(selectedInstrument);
+          setLab({ id: Number(labId), name: selectedInstrument.lab_name || 'Unknown Lab' });
+        } else {
+          throw new Error('Instrument not found');
+        }
+      } catch (err: any) {
+        console.error('Error fetching data:', err.message);
+        setError(`Failed to load data: ${err.message}. Please try again or contact admin.`);
+      }
+    };
+    fetchData();
+  }, [labId, instrumentId]);
 
   // Handle booking click
   const handleBookClick = (date: string, timeSlot: string) => {
+    if (!lab || !instrument) return;
     setBookingData({
-      labName: lab?.name || '',
-      instrumentName: instrument,
-      date: format(parse(date, 'EEEE, do MMMM, yyyy', new Date()), 'dd MMMM, yyyy'),
+      labId: lab.id,
+      labName: lab.name,
+      instrumentName: instrument.instrument_name,
+      date: format(parse(date, 'yyyy-MM-dd', new Date()), 'dd MMMM, yyyy'),
       timeSlot,
     });
     setIsModalOpen(true);
   };
 
-  const resetValues = () => {
-    setBookingData(null);
-    setSupervisor('');
-    setSupervisorQuery('');
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!bookingData) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to book a slot.');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const decoded: DecodedToken = jwtDecode(token);
+      if (!decoded.id) throw new Error('Invalid token: User ID not found');
+      const userId = decoded.id;
+      const [startHour] = bookingData.timeSlot.split('-').map((t) => parseInt(t));
+      const localDate = parse(bookingData.date, 'dd MMMM, yyyy', new Date());
+      localDate.setHours(startHour, 0, 0, 0);
+
+      // Convert local time to UTC by subtracting timezone offset
+      const utcTime = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000);
+      const slotISO = utcTime.toISOString();
+
+      const requestBody = {
+        lab_id: bookingData.labId,
+        lab_name: bookingData.labName,
+        instrument_name: bookingData.instrumentName, // Send instrument_name instead of instrument_id
+        slot: slotISO,
+        requested_by: userId,
+      };
+      console.log('Sending booking request:', requestBody);
+
+      const response = await fetch('http://localhost:5000/api/equipment/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to book slot');
+      alert(`Slot booked successfully! Booking ID: ${data.bookingId}`);
+      setIsModalOpen(false);
+      setBookingData(null);
+      router.push('/');
+    } catch (err: any) {
+      console.error('Error booking slot:', err);
+      alert(`Failed to book slot: ${err.message}`);
+    }
   };
 
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Check if supervisor is selected
-    if (!supervisor) {
-      alert('Please select a supervisor before submitting.');
-      return; // Do not close dialog or reset values
-    }
-    // Handle booking logic here
-    console.log('Booking Data:', {
-      labName: bookingData?.labName,
-      instrumentName: bookingData?.instrumentName,
-      date: bookingData?.date,
-      timeSlot: bookingData?.timeSlot,
-      supervisor,
-    });
-    // Reset form and close modal
-    resetValues();
-    setIsModalOpen(false);
-  };
+  if (!instrument || !lab) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="flex-1 min-h-full w-full bg-white">
       <div className="px-8 py-6">
         <nav className="text-gray-600 text-sm mb-4 flex items-center space-x-2">
-          <span>Home</span>
-          <span>&gt;</span>
-          <span>Booking</span>
-          <span>&gt;</span>
-          <span>{lab?.name || 'Loading...'}</span>
-          <span>&gt;</span>
-          <span className="text-gray-800">{instrument || 'Loading...'}</span>
+          <span className="cursor-pointer" onClick={() => router.push('/')}>Home</span>
+          <span></span>
+          <span className="cursor-pointer" onClick={() => router.push('/book')}>Booking</span>
+          <span></span>
+          <span>{lab.name}</span>
+          <span></span>
+          <span className="text-gray-800">{instrument.instrument_name}</span>
         </nav>
 
-        <h1 className="text-2xl font-semibold mb-2 text-gray-800">
-          {instrument || 'Loading Instrument...'}
-        </h1>
-
-        <table className="w-full border-collapse mt-4">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2 px-3 font-medium text-gray-800">S. No.</th>
-              <th className="text-left py-2 px-3 font-medium text-gray-800">Time</th>
-              <th className="text-left py-2 px-3 font-medium text-gray-800">Available Slots</th>
-              <th className="text-left py-2 px-3 font-medium text-gray-800">Book</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slots.map((slotGroup, idx) => (
-              <React.Fragment key={idx}>
-                <tr>
-                  <td colSpan={5} className="bg-blue-100 text-blue-900 font-semibold py-2 px-3">
-                    {slotGroup.date}
-                  </td>
-                </tr>
-                {slotGroup.times.map((slot) => (
-                  <tr key={slot.id} className="border-b last:border-0">
-                    <td className="py-2 px-3 text-gray-700">{slot.id}</td>
-                    <td className="py-2 px-3 text-gray-700">{slot.time}</td>
-                    <td className="py-2 px-3 text-gray-700">{slot.available} out of {slot.total}</td>
-                    <td className="py-2 px-3">
-                      {slot.available > 0 ? (
-                        <span
-                          className="text-blue-700 cursor-pointer hover:underline"
-                          onClick={() => handleBookClick(slotGroup.date, slot.time)}
-                        >
-                          Book
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">N/A</span>
-                      )}
+        <h1 className="text-2xl font-semibold mb-2 text-gray-800">{instrument.instrument_name}</h1>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        {instrument.is_working ? (
+          <table className="w-full border-collapse mt-4">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2 px-3 font-medium text-gray-800">S. No.</th>
+                <th className="text-left py-2 px-3 font-medium text-gray-800">Time</th>
+                <th className="text-left py-2 px-3 font-medium text-gray-800">Available Slots</th>
+                <th className="text-left py-2 px-3 font-medium text-gray-800">Book</th>
+              </tr>
+            </thead>
+            <tbody>
+              {instrument.availability.map((avail, idx) => (
+                <React.Fragment key={avail.date}>
+                  <tr>
+                    <td colSpan={4} className="bg-blue-100 text-blue-900 font-semibold py-2 px-3">
+                      {format(parse(avail.date, 'yyyy-MM-dd', new Date()), 'EEEE, do MMMM, yyyy')}
                     </td>
                   </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {avail.slots && avail.slots.length > 0 ? (
+                    avail.slots.map((slot) => (
+                      <tr key={slot.slotId} className="border-b last:border-0">
+                        <td className="py-2 px-3 text-gray-700">{slot.slotId}</td>
+                        <td className="py-2 px-3 text-gray-700">{slot.time}</td>
+                        <td className="py-2 px-3 text-gray-700">{slot.available} out of {slot.total}</td>
+                        <td className="py-2 px-3">
+                          {slot.available > 0 ? (
+                            <span
+                              className="text-blue-700 cursor-pointer hover:underline"
+                              onClick={() => handleBookClick(avail.date, slot.time)}
+                            >
+                              Book
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="py-2 px-3 text-gray-700">
+                        No slots available for this date
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-red-500">This instrument is currently not working.</p>
+        )}
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg" onCloseAutoFocus={() => resetValues()}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        setIsModalOpen(open);
+        if (!open) {
+          setBookingData(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl font-semibold mb-2 text-gray-700">
               Booking Request Initiation
@@ -206,11 +250,9 @@ export default function Page() {
           {bookingData && (
             <form onSubmit={handleSubmit} className="w-full">
               <div className="mx-auto rounded bg-white" style={{ maxWidth: 480 }}>
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <div>
-                    <label className="block font-semibold mb-1 text-gray-700">
-                      Facility/ Lab Name:
-                    </label>
+                    <label className="block font-semibold mb-1 text-gray-700">Facility/Lab Name:</label>
                     <input
                       type="text"
                       value={bookingData.labName}
@@ -220,9 +262,7 @@ export default function Page() {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1 text-gray-700">
-                      Instrument Name:
-                    </label>
+                    <label className="block font-semibold mb-1 text-gray-700">Instrument Name:</label>
                     <input
                       type="text"
                       value={bookingData.instrumentName}
@@ -232,9 +272,7 @@ export default function Page() {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1 text-gray-700">
-                      Date:
-                    </label>
+                    <label className="block font-semibold mb-1 text-gray-700">Date:</label>
                     <input
                       type="text"
                       value={bookingData.date}
@@ -244,31 +282,13 @@ export default function Page() {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1 text-gray-700">
-                      Slot:
-                    </label>
+                    <label className="block font-semibold mb-1 text-gray-700">Slot:</label>
                     <input
                       type="text"
                       value={bookingData.timeSlot}
                       disabled
                       className="border rounded px-3 py-2 w-full bg-white text-gray-900"
                       tabIndex={-1}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1 text-gray-700">
-                      Supervisor:
-                    </label>
-                    <Combobox
-                      value={supervisor}
-                      onValueChange={setSupervisor}
-                      inputValue={supervisorQuery}
-                      onInputValueChange={setSupervisorQuery}
-                      options={filteredSupervisors}
-                      placeholder="Type to search supervisor..."
-                      displayValue={(val: string) =>
-                        supervisors.find(s => s.value === val)?.label || ''
-                      }
                     />
                   </div>
                 </div>
