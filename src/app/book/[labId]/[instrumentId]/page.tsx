@@ -192,7 +192,7 @@ export default function AvailabilityPage() {
               </tr>
             </thead>
             <tbody>
-              {instrument.availability.map((avail, idx) => (
+              {instrument.availability.map((avail) => (
                 <React.Fragment key={avail.date}>
                   <tr>
                     <td colSpan={4} className="bg-blue-100 text-blue-900 font-semibold py-2 px-3">
