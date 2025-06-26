@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { parseISO, isWithinInterval } = require('date-fns');
+const { parseISO, isWithinInterval, format } = require('date-fns');
 
 exports.getLabs = (req, res) => {
   db.all(`SELECT id, name FROM labs`, [], (err, rows) => {
@@ -175,7 +175,7 @@ exports.bookSlot = async (req, res) => {
     const slotHour = slotDate.getUTCHours();
     const slotMinute = slotDate.getUTCMinutes();
     const slotSecond = slotDate.getUTCSeconds();
-    console.log('Parsed slot:', slot, 'slotHour:', slotHour, 'slotMinute:', slotMinute, 'slotSecond:', slotSecond);
+    console.log('Parsed slot:', slot, 'slotHour:', slotHour, 'slotMinute:', slotMinute, 'slotSecond', slotSecond);
 
     const slotRanges = [
       { startHour: 10, endHour: 12 },
@@ -273,5 +273,64 @@ exports.bookSlot = async (req, res) => {
   } catch (err) {
     console.error('Booking error:', err.message);
     res.status(500).json({ error: 'Booking failed: ' + err.message });
+  }
+};
+
+// backend/controllers/equipmentController.js (partial)
+exports.getSlotHistory = async (req, res) => {
+  const { lab_id, instrument_name, user_id } = req.query;
+  try {
+    if (!lab_id || !instrument_name || !user_id) {
+      return res.status(400).json({ error: 'lab_id, instrument_name, and user_id are required.' });
+    }
+    const lab = await new Promise((resolve, reject) => {
+      db.get(`SELECT name FROM labs WHERE id = ?`, [lab_id], (err, row) => (err ? reject(err) : resolve(row)));
+    });
+    if (!lab) {
+      return res.status(400).json({ error: 'Lab not found.' });
+    }
+    const bookings = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT sb.id as application_no, sb.slot, sb.status, u1.username as user_name, u2.username as supervisor
+         FROM slot_bookings sb
+         JOIN instruments i ON sb.instrument_id = i.instrument_id
+         JOIN users u1 ON sb.requested_by = u1.id
+         JOIN users u2 ON sb.requested_to = u2.id
+         WHERE i.instrument_name = ? AND i.lab_id = ? AND sb.requested_by = ?`,
+        [instrument_name, lab_id, user_id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
+    });
+    const groupedBookings = bookings.reduce((acc, booking) => {
+      const slotDate = parseISO(booking.slot);
+      const dateStr = format(slotDate, 'EEEE, do MMMM, yyyy');
+      const slotHour = slotDate.getUTCHours();
+      const slotTime = `${slotHour}:00-${slotHour + 2}:00`;
+      const bookingDate = format(slotDate, 'dd/MM/yyyy hh:mm a');
+      if (!acc[dateStr]) {
+        acc[dateStr] = [];
+      }
+      acc[dateStr].push({
+        applicationNo: booking.application_no,
+        slot: slotTime,
+        bookingDate: bookingDate,
+        userName: booking.user_name,
+        supervisor: booking.supervisor,
+        status: booking.status,
+      });
+      return acc;
+    }, {});
+    const history = Object.entries(groupedBookings).map(([date, bookings]) => ({
+      date,
+      bookings,
+    }));
+    res.json({
+      lab_name: lab.name,
+      instrument_name,
+      history,
+    });
+  } catch (err) {
+    console.error('Error fetching slot history:', err.message);
+    res.status(500).json({ error: 'Failed to fetch slot history: ' + err.message });
   }
 };
